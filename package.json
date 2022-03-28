@@ -16,21 +16,16 @@
         "scss",
         "bundle",
         "sass",
+        "import",
         "node-sass"
     ],
     "files": [
-        "dist",
-        "docs",
-        "*.js",
-        "!*.config.js"
+        "build"
     ],
     "bin": {
         "scss-bundle": "dist/cli/main.js"
     },
-    "author": "ReactWay <dev@reactway.com> (https://github.com/reactway)",
-    "bugs": "https://github.com/reactway/scss-bundle/issues",
-    "repository": "reactway/scss-bundle",
-    "homepage": "https://github.com/reactway/scss-bundle",
+    "author": "Vitaly Turovsky",
     "license": "MIT",
     "devDependencies": {
         "@reactway/eslint-config": "^1.0.0-alpha.2",
