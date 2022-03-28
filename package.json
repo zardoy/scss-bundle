@@ -2,12 +2,11 @@
     "name": "@zardoy/scss-bundle",
     "version": "3.2.0",
     "description": "Modern, simple and configurable SCSS bundler",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
+    "main": "build/index.js",
+    "types": "build/index.d.ts",
     "scripts": {
         "build": "tsc",
         "watch": "tsc -w",
-        "start": "node dist/cli/main.js",
         "pretest": "tsc --noEmit && eslint \"src/**/*.ts*\"",
         "test": "echo \"TODO\"",
         "build-tests": "test-generator-cli"
@@ -22,9 +21,6 @@
     "files": [
         "build"
     ],
-    "bin": {
-        "scss-bundle": "dist/cli/main.js"
-    },
     "author": "Vitaly Turovsky",
     "license": "MIT",
     "devDependencies": {
