@@ -2,8 +2,6 @@
     "name": "@zardoy/scss-bundle",
     "version": "3.3.1",
     "description": "Modern, simple and configurable SCSS bundler",
-    "main": "build/index.js",
-    "types": "build/index.d.ts",
     "scripts": {
         "build": "tsc",
         "watch": "tsc -w",
@@ -18,10 +16,7 @@
         "import",
         "node-sass"
     ],
-    "files": [
-        "build"
-    ],
-    "author": "Vitaly Turovsky",
+    "author": "Vitaly Turovsky <vital2580@icloud.com>",
     "license": "MIT",
     "devDependencies": {
         "@reactway/eslint-config": "^1.0.0-alpha.2",
