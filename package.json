@@ -1,6 +1,6 @@
 {
     "name": "@zardoy/scss-bundle",
-    "version": "3.4.0",
+    "version": "3.4.1",
     "description": "Modern, simple and configurable SCSS bundler",
     "main": "build/index.js",
     "types": "build/index.d.ts",
