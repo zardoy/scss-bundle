@@ -7,7 +7,7 @@ Fork of [original scss bundle](https://github.com/reactway/scss-bundle):
 
 Breaking:
 
-- Requires node 14+
+- Requires node 12+
 - Remove CLI
 
 Added:

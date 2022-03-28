@@ -52,11 +52,11 @@ export class Bundler {
 
             // await fs.access(file);
             const contentPromise = await this.additionalOptions.onLoad(file);
-            if (!contentPromise) throw new Error(`Entrypoint can't be external: onLoad returned undefined for ${file}`);
             const dedupeFilesPromise = this.globFilesOrEmpty(dedupeGlobs);
 
             // Await all async operations and extract results
             const [content, dedupeFiles] = await Promise.all([contentPromise, dedupeFilesPromise]);
+            if (content === undefined) throw new Error(`Entrypoint can't be external: onLoad returned undefined for ${file}`);
 
             // Convert string array into regular expressions
             const ignoredImportsRegEx = ignoredImports.map((ignoredImport) => new RegExp(ignoredImport));
@@ -163,7 +163,8 @@ export class Bundler {
                     this.fileRegistry[imp.fullPath] == null
                         ? await this.additionalOptions.onLoad(imp.fullPath)
                         : (this.fileRegistry[imp.fullPath] as string);
-                if (!impContent) {
+
+                if (impContent === undefined) {
                     // ignore
                     imp.ignored = true;
                     currentImport = {
@@ -173,6 +174,7 @@ export class Bundler {
                         ignored: imp.ignored
                     };
                 } else {
+                    if (typeof impContent !== 'string') throw new Error('Styles content loaded from onLoad must be either string or undefined (external)')
                     // otherwise bundle it
                     const bundledImport = await this._bundle(imp.fullPath, impContent, dedupeFiles, includePaths, ignoredImports);
 
