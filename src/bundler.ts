@@ -17,10 +17,10 @@ const TILDE = "~";
 type MaybePromise<T> = T | Promise<T>;
 
 interface AdditionalOptions {
-    resolve(fullPath: string, importPath: string): string | undefined
+    resolve(fullPath: string, originalImport: string): string | undefined
     /** Returns content to inline or `undefined` to mark import as external (leaves as-is) */
-    onLoad(fullPath: string /* additionalInfo: { relativePath: string; importer: string } */): MaybePromise<string | undefined>;
-    throwNotFound: boolean | ((fullPath: string, importString: string) => boolean)
+    onLoad(fullPath: string /* additionalInfo: { originalImport: string; importer: string } */): MaybePromise<string | undefined>;
+    throwNotFound: boolean | ((fullPath: string, originalImport: string) => boolean)
     // renderScss?: boolean
 }
 
@@ -153,7 +153,7 @@ export class Bundler {
             if (!imp.found) {
                 const { throwNotFound } = this.options;
                 if (!imp.ignored && throwNotFound) {
-                    const throwErr = typeof throwNotFound === 'function' ? throwNotFound(imp.fullPath, imp.importString) : throwNotFound
+                    const throwErr = typeof throwNotFound === 'function' ? throwNotFound(imp.fullPath, imp.path) : throwNotFound
                     if (throwErr) throw new Error(`Failed to find import ${imp.importString} from ${filePath}`)
                 }
                 // Add empty bundle result with found: false
@@ -284,7 +284,7 @@ export class Bundler {
         }
 
         importData.fullPath = resolvedPath
-        if (this.fileRegistry[importData.fullPath]) {
+        if (this.fileRegistry[importData.fullPath] !== undefined) {
             importData.found = true;
             return importData;
         }
