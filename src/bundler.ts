@@ -19,7 +19,8 @@ type MaybePromise<T> = T | Promise<T>;
 interface AdditionalOptions {
     resolve(fullPath: string, importPath: string): string | undefined
     /** Returns content to inline or `undefined` to mark import as external (leaves as-is) */
-    onLoad?(fullPath: string /* additionalInfo: { relativePath: string; importer: string } */): MaybePromise<string | undefined>;
+    onLoad(fullPath: string /* additionalInfo: { relativePath: string; importer: string } */): MaybePromise<string | undefined>;
+    throwNotFound: boolean | ((fullPath: string, importString: string) => boolean)
     // renderScss?: boolean
 }
 
@@ -28,16 +29,20 @@ export class Bundler {
     private usedImports: { [key: string]: number } = {};
     // Imports dictionary by file
     private importsByFile: { [key: string]: BundleResult[] } = {};
+    public options: AdditionalOptions
 
     constructor(
         private fileRegistry: FileRegistry = {},
         private readonly projectDirectory?: string,
-        private additionalOptions: Required<AdditionalOptions> = {
+        options: Partial<AdditionalOptions> = {}
+    ) {
+        this.options = {
             resolve: (fullPath) => fullPath,
-            onLoad: (fullPath) => fs.readFile(fullPath, "utf-8")
-            // renderScss: true
+            onLoad: (fullPath) => fs.readFile(fullPath, "utf-8"),
+            throwNotFound: false,
+            ...options
         }
-    ) {}
+    }
 
     public async bundle(
         file: string,
@@ -51,7 +56,7 @@ export class Bundler {
             }
 
             // await fs.access(file);
-            const contentPromise = await this.additionalOptions.onLoad(file);
+            const contentPromise = await this.options.onLoad(file);
             const dedupeFilesPromise = this.globFilesOrEmpty(dedupeGlobs);
 
             // Await all async operations and extract results
@@ -146,6 +151,11 @@ export class Bundler {
 
             // If neither import file, nor partial is found
             if (!imp.found) {
+                const { throwNotFound } = this.options;
+                if (!imp.ignored && throwNotFound) {
+                    const throwErr = typeof throwNotFound === 'function' ? throwNotFound(imp.fullPath, imp.importString) : throwNotFound
+                    if (throwErr) throw new Error(`Failed to find import ${imp.importString} from ${filePath}`)
+                }
                 // Add empty bundle result with found: false
                 currentImport = {
                     filePath: imp.fullPath,
@@ -161,7 +171,7 @@ export class Bundler {
                 // Read
                 const impContent =
                     this.fileRegistry[imp.fullPath] == null
-                        ? await this.additionalOptions.onLoad(imp.fullPath)
+                        ? await this.options.onLoad(imp.fullPath)
                         : (this.fileRegistry[imp.fullPath] as string);
 
                 if (impContent === undefined) {
@@ -267,7 +277,7 @@ export class Bundler {
     }
 
     private async resolveImport(importData: ImportData, includePaths: string[]): Promise<ImportData> {
-        const resolvedPath = this.additionalOptions.resolve(importData.fullPath, importData.path);
+        const resolvedPath = this.options.resolve(importData.fullPath, importData.path);
         if (!resolvedPath) {
             importData.ignored = true
             return importData
