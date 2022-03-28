@@ -17,7 +17,7 @@ const TILDE = "~";
 type MaybePromise<T> = T | Promise<T>;
 
 interface AdditionalOptions {
-    resolve(fullPath: string ): string | undefined
+    resolve(fullPath: string, importPath: string): string | undefined
     /** Returns content to inline or `undefined` to mark import as external (leaves as-is) */
     onLoad?(fullPath: string /* additionalInfo: { relativePath: string; importer: string } */): MaybePromise<string | undefined>;
     // renderScss?: boolean
@@ -265,7 +265,7 @@ export class Bundler {
     }
 
     private async resolveImport(importData: ImportData, includePaths: string[]): Promise<ImportData> {
-        const resolvedPath = this.additionalOptions.resolve(importData.fullPath);
+        const resolvedPath = this.additionalOptions.resolve(importData.fullPath, importData.path);
         if (!resolvedPath) {
             importData.ignored = true
             return importData
