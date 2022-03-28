@@ -1,19 +1,8 @@
 {
+    "extends": "@zardoy/tsconfig/node-lib",
     "compilerOptions": {
-        "module": "commonjs",
-        "target": "es5",
-        "outDir": "dist",
-        "rootDir": "src",
-        "jsx": "react",
-        "noUnusedLocals": true,
-        "declaration": true,
-        "strict": true,
-        "forceConsistentCasingInFileNames": true,
-        "noEmitHelpers": true,
-        "importHelpers": true,
-        "esModuleInterop": true,
-        "moduleResolution": "node",
-        "newLine": "LF"
+        "outDir": "build",
+        "noUncheckedIndexedAccess": false
     },
-    "exclude": ["**/__tests__", "dist"]
+    "include": ["src"]
 }

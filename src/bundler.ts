@@ -14,13 +14,30 @@ const ALLOWED_FILE_EXTENSIONS = [".scss", ".css"];
 const NODE_MODULES = "node_modules";
 const TILDE = "~";
 
+type MaybePromise<T> = T | Promise<T>;
+
+interface AdditionalOptions {
+    resolve(fullPath: string ): string | undefined
+    /** Returns content to inline or `undefined` to mark import as external (leaves as-is) */
+    onLoad?(fullPath: string /* additionalInfo: { relativePath: string; importer: string } */): MaybePromise<string | undefined>;
+    // renderScss?: boolean
+}
+
 export class Bundler {
     // Full paths of used imports and their count
     private usedImports: { [key: string]: number } = {};
     // Imports dictionary by file
     private importsByFile: { [key: string]: BundleResult[] } = {};
 
-    constructor(private fileRegistry: FileRegistry = {}, private readonly projectDirectory?: string) {}
+    constructor(
+        private fileRegistry: FileRegistry = {},
+        private readonly projectDirectory?: string,
+        private additionalOptions: Required<AdditionalOptions> = {
+            resolve: (fullPath) => fullPath,
+            onLoad: (fullPath) => fs.readFile(fullPath, "utf-8")
+            // renderScss: true
+        }
+    ) {}
 
     public async bundle(
         file: string,
@@ -33,15 +50,16 @@ export class Bundler {
                 file = path.resolve(this.projectDirectory, file);
             }
 
-            await fs.access(file);
-            const contentPromise = fs.readFile(file, "utf-8");
+            // await fs.access(file);
+            const contentPromise = await this.additionalOptions.onLoad(file);
+            if (!contentPromise) throw new Error(`Entrypoint can't be external: onLoad returned undefined for ${file}`);
             const dedupeFilesPromise = this.globFilesOrEmpty(dedupeGlobs);
 
             // Await all async operations and extract results
             const [content, dedupeFiles] = await Promise.all([contentPromise, dedupeFilesPromise]);
 
             // Convert string array into regular expressions
-            const ignoredImportsRegEx = ignoredImports.map(ignoredImport => new RegExp(ignoredImport));
+            const ignoredImportsRegEx = ignoredImports.map((ignoredImport) => new RegExp(ignoredImport));
 
             return this._bundle(file, content, dedupeFiles, includePaths, ignoredImportsRegEx);
         } catch {
@@ -53,7 +71,7 @@ export class Bundler {
     }
 
     private isExtensionExists(importName: string): boolean {
-        return ALLOWED_FILE_EXTENSIONS.some(extension => importName.indexOf(extension) !== -1);
+        return ALLOWED_FILE_EXTENSIONS.some((extension) => importName.indexOf(extension) !== -1);
     }
     private async _bundle(
         filePath: string,
@@ -75,7 +93,7 @@ export class Bundler {
         }
 
         // Resolve imports file names (prepend underscore for partials)
-        const importsPromises = matchAll(content, IMPORT_PATTERN).map(async match => {
+        const importsPromises = matchAll(content, IMPORT_PATTERN).map(async (match) => {
             let importName = match[1];
             // Append extension if it's absent
             if (!this.isExtensionExists(importName)) {
@@ -83,7 +101,7 @@ export class Bundler {
             }
 
             // Determine if import should be ignored
-            const ignored = ignoredImports.findIndex(ignoredImportRegex => ignoredImportRegex.test(importName)) !== -1;
+            const ignored = ignoredImports.findIndex((ignoredImportRegex) => ignoredImportRegex.test(importName)) !== -1;
 
             let fullPath: string;
             // Check for tilde import.
@@ -141,18 +159,29 @@ export class Bundler {
 
                 // If file is not yet in the registry
                 // Read
-                const impContent = this.fileRegistry[imp.fullPath] == null
-                    ? await fs.readFile(imp.fullPath, "utf-8")
-                    : this.fileRegistry[imp.fullPath] as string;
+                const impContent =
+                    this.fileRegistry[imp.fullPath] == null
+                        ? await this.additionalOptions.onLoad(imp.fullPath)
+                        : (this.fileRegistry[imp.fullPath] as string);
+                if (!impContent) {
+                    // ignore
+                    imp.ignored = true;
+                    currentImport = {
+                        filePath: imp.fullPath,
+                        tilde: imp.tilde,
+                        found: false,
+                        ignored: imp.ignored
+                    };
+                } else {
+                    // otherwise bundle it
+                    const bundledImport = await this._bundle(imp.fullPath, impContent, dedupeFiles, includePaths, ignoredImports);
 
-                // and bundle it
-                const bundledImport = await this._bundle(imp.fullPath, impContent, dedupeFiles, includePaths, ignoredImports);
+                    // Then add its bundled content to the registry
+                    this.fileRegistry[imp.fullPath] = bundledImport.bundledContent;
 
-                // Then add its bundled content to the registry
-                this.fileRegistry[imp.fullPath] = bundledImport.bundledContent;
-
-                // And whole BundleResult to current imports
-                currentImport = bundledImport;
+                    // And whole BundleResult to current imports
+                    currentImport = bundledImport;
+                }
             } else {
                 // File is in the registry
                 // Increment it's usage count
@@ -229,13 +258,20 @@ export class Bundler {
         const patterns = [COMMENT_PATTERN, MULTILINE_COMMENT_PATTERN];
 
         for (const pattern of patterns) {
-            text = text.replace(pattern, x => x.replace(IMPORT_PATTERN, ""));
+            text = text.replace(pattern, (x) => x.replace(IMPORT_PATTERN, ""));
         }
 
         return text;
     }
 
     private async resolveImport(importData: ImportData, includePaths: string[]): Promise<ImportData> {
+        const resolvedPath = this.additionalOptions.resolve(importData.fullPath);
+        if (!resolvedPath) {
+            importData.ignored = true
+            return importData
+        }
+
+        importData.fullPath = resolvedPath
         if (this.fileRegistry[importData.fullPath]) {
             importData.found = true;
             return importData;
@@ -278,7 +314,7 @@ export class Bundler {
                     reject(error);
                 }
 
-                const fullPaths = files.map(file => path.resolve(file));
+                const fullPaths = files.map((file) => path.resolve(file));
                 resolve(fullPaths);
             });
         });

@@ -1,5 +1,5 @@
 export class BaseError extends Error {
-    public toString(): string {
+    public override toString(): string {
         return this.message;
     }
 }
